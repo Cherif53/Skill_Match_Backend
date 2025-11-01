@@ -1,0 +1,1 @@
+import { IsEnum, IsOptional, IsString } from 'class-validator'; import { DocumentStatus } from '../document.entity'; export class ReviewDto { @IsEnum(DocumentStatus) status: DocumentStatus; @IsOptional() @IsString() comment?: string; }
