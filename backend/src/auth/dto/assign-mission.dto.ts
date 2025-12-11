@@ -1,6 +1,10 @@
-import { IsNumber } from 'class-validator';
+import { IsUUID } from 'class-validator';
 
 export class AssignMissionDto {
-  @IsNumber()
+
+  @IsUUID()
+  missionId: number;
+
+  @IsUUID()
   studentId: number;
 }

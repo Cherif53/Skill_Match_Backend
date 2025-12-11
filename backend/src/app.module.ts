@@ -8,6 +8,14 @@ import { User } from './users/user.entity';
 import { Document } from './documents/document.entity';
 import { AdminModule } from './admin/admin.module';
 import { MissionsModule } from './missions/missions.module';
+import { APP_GUARD } from '@nestjs/core';
+import { JwtAuthGuard } from './auth/guards/jwt.guard';
+import { RolesGuard } from './auth/guards/roles.guard';
+import { PaymentsModule } from './payments/payments.module';
+import { ChatModule } from './chat/chat.module';
+
+
+
 
 @Module({
   imports: [
@@ -30,6 +38,8 @@ import { MissionsModule } from './missions/missions.module';
     DocumentsModule,
     AdminModule,
     MissionsModule,
+    PaymentsModule,
+    ChatModule,
   ],
 })
 export class AppModule {}

@@ -1,8 +1,5 @@
-import { IsEnum, IsOptional } from 'class-validator';
-import { MissionStatus } from '../../missions/mission.entity';
+import { PartialType } from '@nestjs/swagger';
+import { CreateMissionDto } from './create-mission.dto';
 
-export class UpdateMissionDto {
-  @IsEnum(MissionStatus)
-  @IsOptional()
-  status?: MissionStatus;
-}
+
+export class UpdateMissionDto extends PartialType(CreateMissionDto) {}

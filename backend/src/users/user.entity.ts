@@ -1,6 +1,8 @@
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany, ManyToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { Document } from '../documents/document.entity';
 import { Mission } from '../missions/mission.entity';
+import { Transaction } from 'src/payments/entities/transaction.entity';
+import { Message } from 'src/chat/entities/message.entity';
 
 
 export enum UserRole {
@@ -52,6 +54,12 @@ export class User {
   createdMissions: Mission[];
 
   // ✅ Missions auxquelles l'étudiant participe
-  @ManyToMany(() => Mission, (mission) => mission.assignedStudents)
+  @ManyToMany(() => Mission, (mission) => mission.students)
   assignedMissions: Mission[];
+
+  @OneToMany(() => Transaction, (transaction) => transaction.student)
+  transactions: Transaction[];
+
+  @OneToMany(() => Message, (msg) => msg.sender)
+  messages: Message[];
 }

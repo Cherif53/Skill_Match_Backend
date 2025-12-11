@@ -1,38 +1,56 @@
-import { Controller, Get, Post, Param, Body, Delete, Patch } from '@nestjs/common';
+import { Controller, Post, Body, Param, Get, ParseIntPipe, Req, UseGuards, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { MissionsService } from './missions.service';
 import { CreateMissionDto } from '../auth/dto/create-mission.dto';
+import { Roles } from 'src/auth/decorators/roles.decorator';
+import { JwtAuthGuard } from 'src/auth/guards/jwt.guard';
+import { RolesGuard } from 'src/auth/guards/roles.guard';
 
-@Controller('admin/missions')
+@Controller('missions')
 export class MissionsController {
-  constructor(private readonly missionsService: MissionsService) {}
+  constructor(private readonly missionsService: MissionsService) { }
 
-  @Get()
-  findAll() {
-    return this.missionsService.findAll();
-  }
-
+  // ✅ Créer une mission pour une entreprise
   @Post(':companyId')
-  create(@Param('companyId') companyId: number, @Body() dto: CreateMissionDto) {
+  async createMission(
+    @Param('companyId') companyId: number,
+    @Body() dto: CreateMissionDto,
+  ) {
     return this.missionsService.createMission(companyId, dto);
   }
 
-  @Patch(':id/assign')
-  assignStudent(@Param('id') id: number, @Body('studentEmail') studentEmail: string) {
-    return this.missionsService.assignStudentByEmail(id, studentEmail);
+  // ✅ Récupérer les missions d'une entreprise
+  @Get(':companyId')
+  async getMissionsByCompany(@Param('companyId') companyId: number) {
+    return this.missionsService.findByCompany(companyId);
   }
 
-  @Patch(':id/unassign')
-  unassignStudent(@Param('id') id: number, @Body('studentEmail') studentEmail: string) {
-    return this.missionsService.unassignStudentByEmail(id, studentEmail);
+  @Post(':id/apply')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('STUDENT')
+  async applyToMission(
+    @Param('id', ParseIntPipe) missionId: number,
+    @Req() req: any,
+  ) {
+    const user = req.user;
+    if (!user.isActive) {
+      throw new ForbiddenException(
+        'Votre compte n’est pas encore validé. Veuillez compléter vos documents.'
+      );
+    }
+
+    const userId = req.user?.id ?? req.user?.sub;
+
+    console.log('🟡 applyToMission controller', {
+      missionId,
+      user: req.user,
+      userId,
+    });
+
+    if (!userId) {
+      throw new UnauthorizedException('Impossible de déterminer l’utilisateur (id manquant dans le token)');
+    }
+
+    return this.missionsService.applyToMission(missionId, userId);
   }
 
-  @Patch(':id/status')
-  updateStatus(@Param('id') id: number, @Body('status') status: string) {
-    return this.missionsService.updateStatus(id, status as any);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: number) {
-    return this.missionsService.deleteMission(id);
-  }
 }

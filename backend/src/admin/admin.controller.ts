@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Param, Body, Query, UseGuards, Req } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -6,10 +6,14 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/user.entity';
 import { ReviewDocumentDto } from './dto/review-document.dto';
 import { DocumentStatus } from 'src/documents/document.entity';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+
 
 @Controller('admin')
+@ApiTags('Admin')
+@ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN)
+@Roles('ADMIN')
 export class AdminController {
   constructor(private readonly adminService: AdminService) { }
 
@@ -46,15 +50,21 @@ export class AdminController {
     return this.adminService.updateUserRole(Number(id), role as UserRole);
   }
 
+  @Roles('ADMIN')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Get('stats')
-  async getStats() {
+  async getStats(@Req() req: any) {
+    const user = req.user;
+    console.log('✅ Stats demandées par:', req.user);
     return this.adminService.getStats();
   }
 
   @Get('activity')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  async getActivity() {
+  async getActivity(@Req() req: any) {
+    const user = req.user;
+    console.log('✅ Activity stats requested by:', user?.email);
     return this.adminService.getActivityStats();
   }
 

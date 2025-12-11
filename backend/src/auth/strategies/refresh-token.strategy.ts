@@ -14,10 +14,10 @@ export class RefreshTokenStrategy extends PassportStrategy(Strategy, 'jwt-refres
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
-        (req: Request) => req?.cookies?.refreshToken, // ✅ lit depuis les cookies httpOnly
+        (req: Request) => req?.cookies?.skillmatch_refreshToken || null, // ✅ lit depuis les cookies httpOnly
       ]),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_REFRESH_SECRET'),
+      secretOrKey: configService.get<string>('JWT_REFRESH_SECRET') || '',
       passReqToCallback: true, // pour accéder à req dans validate()
     });
   }
