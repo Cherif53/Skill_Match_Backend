@@ -1,7 +1,5 @@
 import { DataSource } from 'typeorm';
 import { config } from 'dotenv';
-import { User } from '../users/user.entity';
-import { Document } from '../documents/document.entity';
 
 config();
 
@@ -12,7 +10,7 @@ export const AppDataSource = new DataSource({
   username: process.env.POSTGRES_USER || 'postgres',
   password: process.env.POSTGRES_PASSWORD || 'postgres',
   database: process.env.POSTGRES_DB || 'skillmatch',
-  synchronize: false,
+  synchronize: process.env.NODE_ENV !== "production",
   entities: [__dirname + '/../**/*.entity{.ts,.js}'],
   migrations: [__dirname + '/../migrations/*{.ts,.js}'],
 });
