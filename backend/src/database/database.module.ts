@@ -18,7 +18,7 @@ import { Document } from '../documents/document.entity';
         username: process.env.DB_USER || 'postgres',
         password: process.env.DB_PASSWORD || 'postgres',
         database: process.env.DB_NAME || 'skillmatch',
-        synchronize: true,
+        synchronize: false,
         logging: true,
 
         // 👇 ICI la clé : on scanne toutes les entités compilées dans dist/

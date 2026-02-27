@@ -51,7 +51,3 @@ async function bootstrap() {
   await app.listen(process.env.PORT || 3000, '0.0.0.0');
 }
 bootstrap();
-
-
-
-//postgresql://skillmatch_p65z_user:S3537WAUmLQyec9JD4UgXKcVi6N4JwtB@dpg-d6gnq1ngi27c73fcre10-a/skillmatch_p65z
