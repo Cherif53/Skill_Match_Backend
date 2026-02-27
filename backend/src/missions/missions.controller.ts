@@ -18,6 +18,18 @@ export class MissionsController {
     return this.missionsService.createMission(companyId, dto);
   }
 
+  @Get(':id')
+  findOne(@Param('id') id: number) {
+    return this.missionsService.findOne(+id);
+  }
+
+
+  @Get()
+  findAll() {
+    return this.missionsService.findAll();
+  }
+
+
   // ✅ Récupérer les missions d'une entreprise
   @Get(':companyId')
   async getMissionsByCompany(@Param('companyId') companyId: number) {

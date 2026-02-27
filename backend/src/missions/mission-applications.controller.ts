@@ -17,7 +17,7 @@ import { Request } from 'express';
 @Controller('missions')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class MissionApplicationsController {
-  constructor(private readonly apps: MissionApplicationsService) {}
+  constructor(private readonly apps: MissionApplicationsService) { }
 
   // 👩‍🎓 Étudiant postule
   @Roles(UserRole.STUDENT)
@@ -26,6 +26,15 @@ export class MissionApplicationsController {
     const user = req.user as any;
     return this.apps.apply(id, user.id);
   }
+
+  // 👩‍🎓 Étudiant - voir SES candidatures
+  @Roles(UserRole.STUDENT)
+  @Get('applications/me')
+  async myApplications(@Req() req: Request) {
+    const user = req.user as any;
+    return this.apps.findByStudent(user.id);
+  }
+
 
   // 👩‍🎓 Étudiant annule
   @Roles(UserRole.STUDENT)

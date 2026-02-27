@@ -1,29 +1,28 @@
-import { Body, Controller, ForbiddenException, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Post, Req, Res } from '@nestjs/common';
 import { Response, Request, CookieOptions } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { UserRole } from '../users/user.entity';
-import { RefreshTokenGuard } from './guards/refresh-token.guard';
-import { JwtAuthGuard } from './guards/jwt.guard';
 import { JwtService } from '@nestjs/jwt';
 import { RegisterCompanyDto } from './dto/register-company.dto';
 import { RegisterStudentDto } from './dto/register-student.dto';
+import { Throttle } from "@nestjs/throttler";
+
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly auth: AuthService, private readonly jwt: JwtService,) { }
 
   private getCookieOptions(req: Request): CookieOptions {
-    const isLocalhost =
-      req.hostname === 'localhost' ||
-      req.hostname === '127.0.0.1';
-
+    const isProd = process.env.NODE_ENV === 'production';
     return {
       httpOnly: true,
-      secure: false, // ✅ HTTPS uniquement pour *.local
-      sameSite: 'lax',
-      path: '/',
+      secure: isProd, // ✅ true en prod (https obligatoire)
+      sameSite: isProd ? "none" : "lax", // ✅ cross-site en prod
+      domain: isProd ? process.env.COOKIE_DOMAIN : undefined, // ".lesindependants.xyz"
+      path: "/auth/refresh", // optionnel mais recommandé
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     } as const;
   }
 
@@ -33,6 +32,7 @@ export class AuthController {
     res.cookie('skillmatch_refreshToken', refreshToken, this.getCookieOptions(req));
     return { accessToken, user };
   }
+
 
   @Post('register-company')
   async registerCompany(@Body() dto: RegisterCompanyDto) {
@@ -44,25 +44,28 @@ export class AuthController {
     return this.auth.registerStudent(dto);
   }
 
+  @Throttle({ default: { limit: 20, ttl: 60 } })
   @Post('login')
   async login(
-    @Body() dto: LoginDto, 
-    @Req() req: Request, 
+    @Body() dto: LoginDto,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
+    const isProd = process.env.NODE_ENV === 'production';
     const result = await this.auth.login(dto);
     res.cookie(
-      'skillmatch_refreshToken', 
-      result.refreshToken, 
+      'skillmatch_refreshToken',
+      result.refreshToken,
       {
-      httpOnly: true,
-      sameSite: 'lax',          // en dev: OK
-      secure: false,            // ⚠️ surtout pas true en http://localhost
-      path: '/',                // pour qu'il parte aussi sur /auth/refresh
-      // domain: 'localhost',   // à éviter si tu n’es pas sûr
-    },
+        httpOnly: true,
+        secure: isProd, // ✅ true en prod (https obligatoire)
+        sameSite: isProd ? "none" : "lax", // ✅ cross-site en prod
+        domain: isProd ? process.env.COOKIE_DOMAIN : undefined, // ".lesindependants.xyz"
+        path: "/auth/refresh", // optionnel mais recommandé
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      },
     );
-    return { 
+    return {
       accessToken: result.accessToken,
       user: result.user,
     };

@@ -13,7 +13,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 @ApiTags('Admin')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN')
+@Roles(UserRole.ADMIN)
 export class AdminController {
   constructor(private readonly adminService: AdminService) { }
 
@@ -50,8 +50,6 @@ export class AdminController {
     return this.adminService.updateUserRole(Number(id), role as UserRole);
   }
 
-  @Roles('ADMIN')
-  @UseGuards(JwtAuthGuard, RolesGuard)
   @Get('stats')
   async getStats(@Req() req: any) {
     const user = req.user;
@@ -60,8 +58,6 @@ export class AdminController {
   }
 
   @Get('activity')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
   async getActivity(@Req() req: any) {
     const user = req.user;
     console.log('✅ Activity stats requested by:', user?.email);

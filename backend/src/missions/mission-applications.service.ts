@@ -82,4 +82,14 @@ export class MissionApplicationsService {
 
     return this.repo.remove(app);
   }
+
+  // 👩‍🎓 Étudiant consulte ses candidatures
+async findByStudent(studentId: number) {
+  return this.repo.find({
+    where: { student: { id: studentId } },
+    relations: ['mission', 'mission.company'],
+    order: { id: 'DESC' },
+  });
+}
+
 }
