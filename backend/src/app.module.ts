@@ -34,7 +34,7 @@ import { ConfigService, ConfigModule } from '@nestjs/config';
       ? { rejectUnauthorized: false }
       : false,
         autoLoadEntities: true,
-        synchronize: false,
+        synchronize: config.get("DB_SYNC") === "true",
       }),
     }),
     TypeOrmModule.forFeature([User, Document]),
