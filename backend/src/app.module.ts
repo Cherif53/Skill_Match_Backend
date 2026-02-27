@@ -10,6 +10,7 @@ import { MissionsModule } from './missions/missions.module';
 import { PaymentsModule } from './payments/payments.module';
 import { ChatModule } from './chat/chat.module';
 import { ThrottlerModule } from "@nestjs/throttler";
+import { ConfigService } from '@nestjs/config';
 
 
 
@@ -22,13 +23,13 @@ import { ThrottlerModule } from "@nestjs/throttler";
       },
     ]),
     TypeOrmModule.forRootAsync({
-      useFactory: () => ({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
         type: 'postgres',
-        host: process.env.DB_HOST,
-        port: Number(process.env.DB_PORT || 5432),
-        username: process.env.DB_USER,
-        password: process.env.DB_PASS,
-        database: process.env.DB_NAME,
+        url: config.get<string>("DATABASE_URL"),
+        ssl: config.get("NODE_ENV") === "production"
+      ? { rejectUnauthorized: false }
+      : false,
         autoLoadEntities: true,
         synchronize: false,
       }),
