@@ -29,11 +29,22 @@ async function bootstrap() {
   app.use(cookieParser());
   app.enableCors({
     origin: (origin, cb) => {
-      if (!origin) return cb(null, true); // Postman/cURL
+      // Autoriser les requêtes sans origin (curl/postman)
+      if (!origin) return cb(null, true);
+
+      const allowedOrigins = (process.env.CORS_ORIGINS ?? "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
       if (allowedOrigins.includes(origin)) return cb(null, true);
+
+      console.warn("❌ CORS blocked origin:", origin);
       return cb(new Error("Not allowed by CORS"), false);
     },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   });
 
   if (process.env.NODE_ENV !== "production") {
