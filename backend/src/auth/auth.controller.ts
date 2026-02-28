@@ -21,7 +21,7 @@ export class AuthController {
       secure: isProd, // ✅ true en prod (https obligatoire)
       sameSite: isProd ? "none" : "lax", // ✅ cross-site en prod
       domain: isProd ? process.env.COOKIE_DOMAIN : undefined, // ".lesindependants.xyz"
-      path: "/auth/refresh", // optionnel mais recommandé
+      path: "/", // optionnel mais recommandé
       maxAge: 7 * 24 * 60 * 60 * 1000,
     } as const;
   }
@@ -44,7 +44,7 @@ export class AuthController {
     return this.auth.registerStudent(dto);
   }
 
-  @Throttle({ default: { limit: 20, ttl: 60 } })
+  @Throttle({ default: { limit: 10, ttl: 60 } })
   @Post('login')
   async login(
     @Body() dto: LoginDto,
@@ -56,14 +56,7 @@ export class AuthController {
     res.cookie(
       'skillmatch_refreshToken',
       result.refreshToken,
-      {
-        httpOnly: true,
-        secure: isProd, // ✅ true en prod (https obligatoire)
-        sameSite: isProd ? "none" : "lax", // ✅ cross-site en prod
-        domain: isProd ? process.env.COOKIE_DOMAIN : undefined, // ".lesindependants.xyz"
-        path: "/auth/refresh", // optionnel mais recommandé
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      },
+      this.getCookieOptions(req)
     );
     return {
       accessToken: result.accessToken,
