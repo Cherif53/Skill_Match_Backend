@@ -22,27 +22,27 @@ export class AuthService {
   ) { }
 
   private async signAccessToken(user: User) {
-  const payload = { sub: user.id, role: user.role, email: user.email };
+    const payload = { sub: user.id, role: user.role, email: user.email };
 
-  const options: JwtSignOptions = {
-    secret: this.config.get<string>('JWT_SECRET') ?? '',
-    expiresIn: 60 * 15, // 15 minutes
-  };
+    const options: JwtSignOptions = {
+      secret: this.config.get<string>('JWT_SECRET') ?? '',
+      expiresIn: 60 * 15, // 15 minutes
+    };
 
-  // ✅ le cast force la bonne surcharge à être utilisée
-  return this.jwt.signAsync(payload as any, options);
-}
+    // ✅ le cast force la bonne surcharge à être utilisée
+    return this.jwt.signAsync(payload as any, options);
+  }
 
-private async signRefreshToken(user: User) {
-  const payload = { sub: user.id, tokenType: 'refresh' };
+  private async signRefreshToken(user: User) {
+    const payload = { sub: user.id, tokenType: 'refresh' };
 
-  const options: JwtSignOptions = {
-    secret: this.config.get<string>('JWT_REFRESH_SECRET') ?? '',
-    expiresIn: 60 * 60 * 24 * 7, // 7 jours
-  };
+    const options: JwtSignOptions = {
+      secret: this.config.get<string>('JWT_REFRESH_SECRET') ?? '',
+      expiresIn: 60 * 60 * 24 * 7, // 7 jours
+    };
 
-  return this.jwt.signAsync(payload as any, options);
-}
+    return this.jwt.signAsync(payload as any, options);
+  }
 
   private async hash(data: string) {
     return bcrypt.hash(data, 10);
@@ -124,6 +124,11 @@ private async signRefreshToken(user: User) {
       role: UserRole.COMPANY,
       firstName: dto.name, // tu peux affiner si tu as des champs séparés
       // tu peux créer une entité CompanyProfile plus tard pour stocker siret/iban
+      companyName: dto.companyName,
+      siret: dto.siret,
+      iban: dto.iban,
+      address: dto.address,
+      phone: dto.phone,
     });
 
     await this.usersRepo.save(user);
@@ -133,26 +138,26 @@ private async signRefreshToken(user: User) {
   }
 
   async registerStudent(dto: RegisterStudentDto) {
-  const existing = await this.usersRepo.findOne({ where: { email: dto.email } });
-  if (existing) {
-    throw new BadRequestException('Email déjà utilisé');
+    const existing = await this.usersRepo.findOne({ where: { email: dto.email } });
+    if (existing) {
+      throw new BadRequestException('Email déjà utilisé');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+
+    const user = this.usersRepo.create({
+      email: dto.email,
+      password: passwordHash,
+      role: UserRole.STUDENT,
+      firstName: dto.firstName,
+      lastName: dto.lastName,
+      // 🚨 Étudiant toujours inactif à la création
+      isActive: false,
+    });
+
+    await this.usersRepo.save(user);
+
+    return { message: 'Compte étudiant créé. Veuillez compléter vos documents pour être activé.' };
   }
-
-  const passwordHash = await bcrypt.hash(dto.password, 10);
-
-  const user = this.usersRepo.create({
-    email: dto.email,
-    password: passwordHash,
-    role: UserRole.STUDENT,
-    firstName: dto.firstName,
-    lastName: dto.lastName,
-    // 🚨 Étudiant toujours inactif à la création
-    isActive: false,
-  });
-
-  await this.usersRepo.save(user);
-
-  return { message: 'Compte étudiant créé. Veuillez compléter vos documents pour être activé.' };
-}
 
 }

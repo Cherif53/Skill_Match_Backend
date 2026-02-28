@@ -10,6 +10,8 @@ export class MissionsController {
   constructor(private readonly missionsService: MissionsService) { }
 
   // ✅ Créer une mission pour une entreprise
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('COMPANY')
   @Post(':companyId')
   async createMission(
     @Param('companyId') companyId: number,

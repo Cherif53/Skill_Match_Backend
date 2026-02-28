@@ -12,5 +12,5 @@ export const AppDataSource = new DataSource({
   database: process.env.POSTGRES_DB || 'skillmatch',
   synchronize: process.env.NODE_ENV !== "production",
   entities: [__dirname + '/../**/*.entity{.ts,.js}'],
-  migrations: [__dirname + '/../migrations/*{.ts,.js}'],
+  migrations: [__dirname + '/migrations/*{.ts,.js}'],
 });

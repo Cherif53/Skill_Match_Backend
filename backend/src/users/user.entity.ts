@@ -34,6 +34,22 @@ export class User {
   @Column({ default: true })
   isActive: boolean;
 
+  // ✅ Champs Entreprise (nullable pour les STUDENT/ADMIN)
+  @Column({ nullable: true })
+  companyName?: string;
+
+  @Column({ nullable: true })
+  siret?: string;
+
+  @Column({ nullable: true })
+  iban?: string;
+
+  @Column({ nullable: true })
+  address?: string;
+
+  @Column({ nullable: true })
+  phone?: string;
+
   @OneToMany(() => Document, (doc) => doc.user)
   documents: Document[];
 
