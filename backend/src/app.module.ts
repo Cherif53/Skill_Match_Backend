@@ -11,7 +11,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { ChatModule } from './chat/chat.module';
 import { ThrottlerModule } from "@nestjs/throttler";
 import { ConfigService, ConfigModule } from '@nestjs/config';
-import { BootstrapController } from './bootstrap/bootstrap.controller';
+//import { BootstrapController } from './bootstrap/bootstrap.controller';
 
 
 
@@ -48,7 +48,7 @@ import { BootstrapController } from './bootstrap/bootstrap.controller';
     ChatModule,
   ],
   controllers: [
-    BootstrapController, // N'oublie pas d'importer ce controller
+    //BootstrapController, // N'oublie pas d'importer ce controller
   ],
 })
 export class AppModule {}
