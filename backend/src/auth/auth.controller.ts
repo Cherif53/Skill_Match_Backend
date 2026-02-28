@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { Response, Request, CookieOptions } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
@@ -8,6 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import { RegisterCompanyDto } from './dto/register-company.dto';
 import { RegisterStudentDto } from './dto/register-student.dto';
 import { Throttle } from "@nestjs/throttler";
+import { JwtAuthGuard } from './guards/jwt.guard';
 
 
 @Controller('auth')
@@ -88,8 +89,6 @@ export class AuthController {
 
   @Post('logout')
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const user = req.user as any;
-    await this.auth.logout(user.id);
     res.clearCookie('skillmatch_refreshToken', this.getCookieOptions(req));
     return { message: 'Déconnexion réussie.' };
   }
