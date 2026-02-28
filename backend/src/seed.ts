@@ -1,4 +1,3 @@
-import { DataSource } from 'typeorm';
 import { User } from './users/user.entity';
 import { UserRole } from './users/user.entity';
 import { hash } from 'bcryptjs';

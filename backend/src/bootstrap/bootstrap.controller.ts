@@ -26,14 +26,14 @@ export class BootstrapController {
 
     // 2) on cherche l'user existant
     const existing = await this.dataSource.query(
-      `SELECT id FROM "user" WHERE email = $1 LIMIT 1`,
+      `SELECT id FROM "users" WHERE email = $1 LIMIT 1`,
       [email]
     );
 
     // 3) s’il existe -> update password + role ADMIN + isActive true
     if (existing?.length) {
       await this.dataSource.query(
-        `UPDATE "user"
+        `UPDATE "users"
          SET password = $1, role = $2, "isActive" = true
          WHERE email = $3`,
         [passwordHash, UserRole.ADMIN, email]
@@ -43,7 +43,7 @@ export class BootstrapController {
 
     // 4) sinon -> create (adapte les colonnes selon ton entity user)
     await this.dataSource.query(
-      `INSERT INTO "user"(email, password, role, "isActive", "createdAt", "updatedAt")
+      `INSERT INTO "users"(email, password, role, "isActive", "createdAt", "updatedAt")
        VALUES ($1, $2, $3, true, NOW(), NOW())`,
       [email, passwordHash, UserRole.ADMIN]
     );
