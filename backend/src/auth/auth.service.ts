@@ -122,7 +122,8 @@ export class AuthService {
       email: dto.email,
       password: passwordHash,
       role: UserRole.COMPANY,
-      firstName: dto.name, // tu peux affiner si tu as des champs séparés
+      firstName: dto.firstName,
+      lastName: dto.lastName, // tu peux affiner si tu as des champs séparés
       // tu peux créer une entité CompanyProfile plus tard pour stocker siret/iban
       companyName: dto.companyName,
       siret: dto.siret,

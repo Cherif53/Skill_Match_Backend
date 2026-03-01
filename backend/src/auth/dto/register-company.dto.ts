@@ -3,7 +3,11 @@ import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
 export class RegisterCompanyDto {
   @IsNotEmpty()
   @IsString()
-  name: string; // nom du contact ou nom du compte
+  firstName: string; // nom du contact ou nom du compte
+
+  @IsNotEmpty()
+  @IsString()
+  lastName: string; 
 
   @IsNotEmpty()
   @IsString()
