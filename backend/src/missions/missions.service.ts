@@ -45,7 +45,13 @@ export class MissionsService {
 
   // ✅ Récupérer toutes les missions
   async findAll() {
-    return this.missionsRepo.find({ relations: ['company', 'students'], order: { date: 'DESC' } });
+    return this.missionsRepo.find({
+    relations: {
+      company: true,
+      students: true,
+    },
+    order: { createdAt: 'DESC' },
+  });
   }
 
   // 🧩 Trouver une mission par ID (avec relations)
@@ -66,7 +72,8 @@ export class MissionsService {
   async findByCompany(companyId: number) {
     return this.missionsRepo.find({
       where: { company: { id: companyId } },
-      relations: ['company', 'students'],
+      relations: { company: true, students: true },
+      order: { createdAt: 'DESC' },
     });
   }
 

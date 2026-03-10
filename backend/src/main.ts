@@ -36,11 +36,6 @@ async function bootstrap() {
       // Autoriser les requêtes sans origin (curl/postman)
       if (!origin) return cb(null, true);
 
-      const allowedOrigins = (process.env.CORS_ORIGINS ?? "")
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-
       if (allowedOrigins.includes(origin)) return cb(null, true);
 
       console.warn("❌ CORS blocked origin:", origin);

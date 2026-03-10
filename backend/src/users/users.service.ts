@@ -1,7 +1,9 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { Injectable, ConflictException, NotFoundException, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm'; 
 import { Repository } from 'typeorm';
 import { User } from './user.entity';
+import * as bcrypt from 'bcryptjs';
+import { ChangePasswordDto } from '../payments/dto/change-password.dto';
 
 @Injectable()
 export class UsersService {
@@ -45,4 +47,30 @@ export class UsersService {
   async findOne(id: number) {
     return this.repo.findOne({ where: { id } });
   }
+
+  async changePassword(userId: number, dto: ChangePasswordDto) {
+  const user = await this.repo.findOne({ where: { id: userId } });
+
+  if (!user) {
+    throw new NotFoundException('Utilisateur introuvable');
+  }
+
+  const isMatch = await bcrypt.compare(dto.currentPassword, user.password);
+
+  if (!isMatch) {
+    throw new UnauthorizedException('Mot de passe actuel incorrect');
+  }
+
+  const samePassword = await bcrypt.compare(dto.newPassword, user.password);
+  if (samePassword) {
+    throw new BadRequestException('Le nouveau mot de passe doit être différent de l’ancien');
+  }
+
+  user.password = await bcrypt.hash(dto.newPassword, 10);
+  user.mustChangePassword = false;
+
+  await this.repo.save(user);
+
+  return { message: 'Mot de passe mis à jour avec succès' };
+}
 }

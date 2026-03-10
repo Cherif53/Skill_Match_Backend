@@ -13,11 +13,14 @@ export class MissionsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('COMPANY')
   @Post(':companyId')
-  async createMission(
-    @Param('companyId') companyId: number,
-    @Body() dto: CreateMissionDto,
-  ) {
+  createMission(@Param('companyId', ParseIntPipe) companyId: number, @Body() dto: CreateMissionDto) {
     return this.missionsService.createMission(companyId, dto);
+  }
+
+  // ✅ Récupérer les missions d'une entreprise
+  @Get('company/:companyId')
+  findByCompany(@Param('companyId', ParseIntPipe) companyId: number) {
+    return this.missionsService.findByCompany(companyId);
   }
 
   @Get(':id')
@@ -25,17 +28,9 @@ export class MissionsController {
     return this.missionsService.findOne(+id);
   }
 
-
   @Get()
   findAll() {
     return this.missionsService.findAll();
-  }
-
-
-  // ✅ Récupérer les missions d'une entreprise
-  @Get(':companyId')
-  async getMissionsByCompany(@Param('companyId') companyId: number) {
-    return this.missionsService.findByCompany(companyId);
   }
 
   @Post(':id/apply')

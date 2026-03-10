@@ -16,7 +16,7 @@ import { Document } from '../documents/document.entity';
         host: process.env.DB_HOST || 'skillmatch_db',
         port: parseInt(process.env.DB_PORT ?? '5432', 10),
         username: process.env.DB_USER || 'postgres',
-        password: process.env.DB_PASSWORD || 'postgres',
+        password: process.env.DB_PASS || 'postgres',
         database: process.env.DB_NAME || 'skillmatch',
         synchronize: false,
         logging: true,

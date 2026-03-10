@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Param, Body, Query, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Patch, Post, Param, Body, Query, UseGuards, Req } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -7,6 +7,7 @@ import { UserRole } from '../users/user.entity';
 import { ReviewDocumentDto } from './dto/review-document.dto';
 import { DocumentStatus } from 'src/documents/document.entity';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { CreateUserByAdminDto } from './dto/create-user-by-admin.dto';
 
 
 @Controller('admin')
@@ -90,4 +91,10 @@ export class AdminController {
       comment || '',
     );
   }
+
+  @Post('users')
+  createUserByAdmin(@Body() dto: CreateUserByAdminDto) {
+    return this.adminService.createUserByAdmin(dto);
+  }
+
 }

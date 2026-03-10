@@ -59,6 +59,9 @@ export class User {
   @Column({ type: 'timestamp', nullable: true })
   lastLogin?: Date;
 
+  @Column({ default: false })
+  mustChangePassword: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 

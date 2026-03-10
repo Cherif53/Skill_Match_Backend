@@ -4,9 +4,12 @@ import { UsersService } from '../users/users.service';
 import { Repository } from 'typeorm';
 import { User, UserRole } from '../users/user.entity';
 import { Document, DocumentStatus } from '../documents/document.entity';
-import { PaginationDto } from './dto/pagination.dto';
-import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { ReviewDocumentDto } from './dto/review-document.dto';
+import { CreateUserByAdminDto } from './dto/create-user-by-admin.dto';
+import * as bcrypt from 'bcryptjs';
+import { Mission, MissionStatus } from '../missions/mission.entity';
+import { Transaction, TransactionStatus } from 'src/payments/entities/transaction.entity';
+
 
 @Injectable()
 export class AdminService {
@@ -16,6 +19,10 @@ export class AdminService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(Document)
     private readonly docRepo: Repository<Document>,
+    @InjectRepository(Mission)
+    private readonly missionRepo: Repository<Mission>,
+    @InjectRepository(Transaction)
+    private readonly transactionRepo: Repository<Transaction>,
   ) { }
 
   // 👥 Liste des utilisateurs avec pagination et recherche
@@ -52,6 +59,30 @@ export class AdminService {
     return this.userRepo.save(user);
   }
 
+  async createUserByAdmin(dto: CreateUserByAdminDto) {
+    const existingUser = await this.userRepo.findOne({
+      where: { email: dto.email },
+    });
+
+    if (existingUser) {
+      throw new BadRequestException('Un utilisateur avec cet email existe déjà.');
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+
+    const user = this.userRepo.create({
+      firstName: dto.firstName,
+      lastName: dto.lastName,
+      email: dto.email,
+      password: hashedPassword,
+      role: dto.role,
+      isActive: true,
+      mustChangePassword: true, // Force le changement de mot de passe à la première connexion
+    });
+
+    return this.userRepo.save(user);
+  }
+
   // 📄 Validation ou refus d’un document
   async reviewDocument(id: number, dto: ReviewDocumentDto) {
     const doc = await this.docRepo.findOne({ where: { id }, relations: ['user'] });
@@ -64,25 +95,64 @@ export class AdminService {
   async getStats() {
     const totalUsers = await this.userRepo.count();
     const totalDocs = await this.docRepo.count();
-    const pendingDocs = await this.docRepo.count({ where: { status: DocumentStatus.PENDING } });
-    const approvedDocs = await this.docRepo.count({ where: { status: DocumentStatus.APPROVED } });
 
-    const activity = [
-      { month: 'Jan', users: 15, documents: 10 },
-      { month: 'Fév', users: 30, documents: 20 },
-      { month: 'Mar', users: 45, documents: 25 },
-      { month: 'Avr', users: 60, documents: 40 },
-    ];
+    const pendingDocs = await this.docRepo.count({
+      where: { status: DocumentStatus.PENDING },
+    });
+
+    const approvedDocs = await this.docRepo.count({
+      where: { status: DocumentStatus.APPROVED },
+    });
+
+    const totalStudents = await this.userRepo.count({
+      where: { role: UserRole.STUDENT },
+    });
+
+    const totalCompanies = await this.userRepo.count({
+      where: { role: UserRole.COMPANY },
+    });
+
+    const totalAdmins = await this.userRepo.count({
+      where: { role: UserRole.ADMIN },
+    });
+
+    const activeStudents = await this.userRepo.count({
+      where: {
+        role: UserRole.STUDENT,
+        isActive: true,
+      },
+    });
+
+    const missionsOpen = await this.missionRepo.count({
+      where: [
+        { status: MissionStatus.PENDING },
+        { status: MissionStatus.STAFFED },
+      ],
+    });
+
+    const missionsToStaff = await this.missionRepo
+      .createQueryBuilder('mission')
+      .where('mission.status = :status', { status: MissionStatus.PENDING })
+      .getCount();
+
+    const pendingPayments = await this.transactionRepo.count({
+      where: { status: TransactionStatus.PENDING },
+    });
 
     return {
       totalUsers,
       totalDocs,
       pendingDocs,
       approvedDocs,
-      activity,
+      totalStudents,
+      totalCompanies,
+      totalAdmins,
+      activeStudents,
+      missionsOpen,
+      missionsToStaff,
+      pendingPayments,
     };
   }
-
   async getActivityStats() {
     const query = await this.userRepo
       .createQueryBuilder('user')
@@ -95,7 +165,7 @@ export class AdminService {
     return query.map((r) => ({
       month: r.month,
       users: Number(r.users),
-      approved: Math.floor(Math.random() * r.users),
+      approved: 0,
     }));
   }
 
@@ -141,10 +211,10 @@ export class AdminService {
     }
 
     // ✅ Si rejeté, on peut désactiver le compte
-    if(anyRejected) {
+    if (anyRejected) {
       doc.user.isActive = false;
     }
-    await this.docRepo.save(doc);
+    await this.userRepo.save(doc.user);
     return doc;
   }
 }
