@@ -34,7 +34,15 @@ export class UsersService {
   }
 
   async update(id: number, data: Partial<User>) {
-    await this.repo.update(id, data);
+    const allowedData = { 
+      companyName: data.companyName,
+      email: data.email,
+      phone: data.phone,
+      address: data.address,
+      website: data.website,
+      description: data.description,
+    }; // Seules ces propriétés peuvent être mises à jour
+    await this.repo.update(id, allowedData);
     return this.findOne(id);
   }
 

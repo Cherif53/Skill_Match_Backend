@@ -13,6 +13,13 @@ export class UsersController {
     return this.users.findById(Number(id));
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Patch('me')
+  updateMe(@Req() req: Request, @Body() body: any) {
+    const user = (req as any).user;
+    return this.users.update(user.id, body);
+  }
+  
   @Patch('change-password')
   changePassword(@Req() req: any, @Body() dto: ChangePasswordDto) {
     return this.users.changePassword(req.user.id, dto);

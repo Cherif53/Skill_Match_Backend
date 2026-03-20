@@ -62,6 +62,12 @@ export class User {
   @Column({ default: false })
   mustChangePassword: boolean;
 
+  @Column({ nullable: true })
+  website?: string;
+
+  @Column({ type: 'text', nullable: true })
+  description?: string;
+
   @CreateDateColumn()
   createdAt: Date;
 
@@ -70,7 +76,7 @@ export class User {
 
   // ✅ Missions créées par l'entreprise
   @OneToMany(() => Mission, (mission) => mission.company)
-  createdMissions: Mission[];
+  missions: Mission[];
 
   // ✅ Missions auxquelles l'étudiant participe
   @ManyToMany(() => Mission, (mission) => mission.students)

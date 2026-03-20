@@ -6,6 +6,9 @@ import {
   Get,
   UseGuards,
   Req,
+  NotFoundException,
+  BadRequestException,
+  Body,
 } from '@nestjs/common';
 import { MissionApplicationsService } from './mission-applications.service';
 import { JwtAuthGuard } from '../auth/guards/jwt.guard';
@@ -13,19 +16,18 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { UserRole } from '../users/user.entity';
 import { Request } from 'express';
+import { MissionsService } from './missions.service';
+import { ApplicationStatus, MissionApplication } from './mission-application.entity';
+import { MissionStatus } from './mission.entity';
+import { Repository } from 'typeorm';
 
 @Controller('missions')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class MissionApplicationsController {
-  constructor(private readonly apps: MissionApplicationsService) { }
-
-  // 👩‍🎓 Étudiant postule
-  @Roles(UserRole.STUDENT)
-  @Post(':id/apply')
-  async apply(@Param('id') id: number, @Req() req: Request) {
-    const user = req.user as any;
-    return this.apps.apply(id, user.id);
-  }
+  constructor(
+    private readonly apps: MissionApplicationsService,
+    private readonly missionsService: MissionsService,
+  ) { }
 
   // 👩‍🎓 Étudiant - voir SES candidatures
   @Roles(UserRole.STUDENT)
@@ -64,4 +66,14 @@ export class MissionApplicationsController {
   async reject(@Param('id') id: number, @Param('studentId') studentId: number) {
     return this.apps.reject(id, studentId);
   }
+
+  @Roles(UserRole.COMPANY)
+    @Post(':id/staff')
+    async staff(
+      @Param('id') id: number,
+      @Body() body: { applicationIds: number[] },
+    ) {
+      return this.apps.staffMission(+id, body.applicationIds)
+    }
+    
 }

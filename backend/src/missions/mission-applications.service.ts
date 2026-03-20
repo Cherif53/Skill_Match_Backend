@@ -10,6 +10,7 @@ import { MissionApplication, ApplicationStatus } from './mission-application.ent
 import { MissionsService } from './missions.service';
 import { UsersService } from '../users/users.service';
 import { UserRole } from '../users/user.entity';
+import { MissionStatus } from './mission.entity';
 
 @Injectable()
 export class MissionApplicationsService {
@@ -85,11 +86,87 @@ export class MissionApplicationsService {
 
   // 👩‍🎓 Étudiant consulte ses candidatures
 async findByStudent(studentId: number) {
-  return this.repo.find({
-    where: { student: { id: studentId } },
-    relations: ['mission', 'mission.company'],
-    order: { id: 'DESC' },
-  });
+  return this.repo
+    .createQueryBuilder('app')
+    .leftJoinAndSelect('app.mission', 'mission')
+    .leftJoinAndSelect('mission.company', 'company')
+    .where('app.student.id = :studentId', { studentId })
+    .leftJoin('app.student', 'student')
+    .select([
+      'app.id',
+      'app.status',
+      'app.appliedAt',
+
+      'mission.id',
+      'mission.title',
+      'mission.description',
+      'mission.location',
+      'mission.date',
+      'mission.startHour',
+      'mission.endHour',
+      'mission.studentCount',
+      'mission.hourlyRate',
+      'mission.totalStudentEarnings',
+      'mission.platformCommission',
+      'mission.totalCompanyCost',
+      'mission.status',
+      'mission.paymentValidated',
+      'mission.paymentDate',
+      'mission.createdAt',
+
+      'company.id',
+      'company.email',
+      'company.firstName',
+      'company.lastName',
+      'company.role',
+      'company.isActive',
+      'company.companyName',
+      'company.address',
+      'company.phone',
+      'company.createdAt',
+      'company.updatedAt',
+    ])
+    .orderBy('app.id', 'DESC')
+    .getMany();
+}
+
+async staffMission(missionId: number, applicationIds: number[]) {
+  const mission = await this.missionsService.findOne(missionId)
+
+  if (!mission) throw new NotFoundException('Mission introuvable')
+
+  if (applicationIds.length > mission.studentCount) {
+    throw new BadRequestException(
+      `Maximum ${mission.studentCount} étudiants autorisés`
+    )
+  }
+
+  const allApps = await this.repo.find({
+    where: { mission: { id: missionId } },
+    relations: ['student'],
+  })
+
+  const selected = new Set(applicationIds)
+
+  mission.students = []
+
+  for (const app of allApps) {
+    if (selected.has(app.id)) {
+      app.status = ApplicationStatus.ACCEPTED
+      mission.students.push(app.student)
+    } else if (app.status === ApplicationStatus.PENDING) {
+      app.status = ApplicationStatus.REJECTED
+    }
+  }
+
+  mission.status = MissionStatus.STAFFED
+
+  await this.repo.save(allApps)
+
+  return {
+    missionId,
+    assigned: mission.students.length,
+  }
 }
 
 }

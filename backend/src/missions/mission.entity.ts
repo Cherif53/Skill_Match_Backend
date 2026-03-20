@@ -68,7 +68,7 @@ export class Mission {
   @Column({ type: 'timestamptz', nullable: true })
   paymentDate: Date | null;
 
-  @ManyToOne(() => User, (user) => user.createdMissions, { cascade: true })
+  @ManyToOne(() => User, (user) => user.missions, { cascade: true, eager: false })
   company?: User;
 
   @ManyToMany(() => User, (user) => user.assignedMissions, { cascade: true })

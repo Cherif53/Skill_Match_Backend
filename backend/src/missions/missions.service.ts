@@ -43,21 +43,28 @@ export class MissionsService {
     return await this.missionsRepo.save(mission);
   }
 
-  // ✅ Récupérer toutes les missions
-  async findAll() {
+  // ✅ Récupérer toutes les missions d'une entreprise connectée
+  async findAll(companyId?: number) {
+    const where = companyId ? { company: { id: companyId } } : {};
+
     return this.missionsRepo.find({
-    relations: {
-      company: true,
-      students: true,
-    },
-    order: { createdAt: 'DESC' },
-  });
+      where,
+      relations: {
+        company: true,
+        students: true,
+      },
+      order: { createdAt: 'DESC' },
+    });
   }
 
-  // 🧩 Trouver une mission par ID (avec relations)
-  async findOne(id: number): Promise<Mission> {
+  // 🧩 Trouver une mission par ID pour une entreprise donnée
+  async findOne(id: number, companyId?: number): Promise<Mission> {
+    const where = companyId
+      ? { id, company: { id: companyId } }
+      : { id };
+
     const mission = await this.missionsRepo.findOne({
-      where: { id },
+      where,
       relations: ['company', 'students', 'applications'],
     });
 
@@ -78,24 +85,26 @@ export class MissionsService {
   }
 
   // ✅ Ajouter un étudiant à une mission (sans doublon)
-  async assignStudent(missionId: number, studentId: number) {
-    const mission = await this.findOne(missionId);
+  async assignStudent(missionId: number, studentId: number, companyId?: number) {
+    const mission = companyId
+      ? await this.getOwnedMissionOrFail(missionId, companyId)
+      : await this.findOne(missionId);
+
     const student = await this.usersService.findOne(studentId);
 
     if (!student) throw new NotFoundException('Étudiant introuvable');
-    if (!student.isActive)
+    if (!student.isActive) {
       throw new BadRequestException('Compte étudiant inactif');
+    }
 
-    // Vérifie si l’étudiant est déjà affecté à la mission
     const alreadyAssigned = mission.students.some((s) => s.id === student.id);
-    if (alreadyAssigned)
+    if (alreadyAssigned) {
       throw new BadRequestException('Étudiant déjà assigné à cette mission');
+    }
 
-    // Ajoute l’étudiant
     mission.students.push(student);
-    mission.status = MissionStatus.STAFFED; // ✅ passe en STAFFED si au moins un étudiant
+    mission.status = MissionStatus.STAFFED;
 
-    // Sauvegarde la mission
     await this.missionsRepo.save(mission);
 
     return {
@@ -106,8 +115,11 @@ export class MissionsService {
   }
 
   // ✅ Retirer un étudiant
-  async unassignStudent(missionId: number, studentId: number) {
-    const mission = await this.findOne(missionId);
+  async unassignStudent(missionId: number, studentId: number, companyId?: number) {
+    const mission = companyId
+      ? await this.getOwnedMissionOrFail(missionId, companyId)
+      : await this.findOne(missionId);
+
     const student = await this.usersService.findOne(studentId);
 
     if (!student) throw new NotFoundException('Étudiant introuvable');
@@ -116,7 +128,7 @@ export class MissionsService {
     mission.students = mission.students.filter((s) => s.id !== student.id);
 
     if (mission.students.length === 0) {
-      mission.status = MissionStatus.PENDING; // repasse en attente si plus personne
+      mission.status = MissionStatus.PENDING;
     }
 
     await this.missionsRepo.save(mission);
@@ -127,16 +139,22 @@ export class MissionsService {
       after: mission.students.length,
     };
   }
-  // ✅ Met à jour le statut d’une mission
-  async updateMissionStatus(id: number, status: MissionStatus) {
-    const mission = await this.findOne(id);
 
-    // Empêche de repasser en PENDING une mission terminée
-    if (mission.status === MissionStatus.COMPLETED && status === MissionStatus.PENDING) {
-      throw new BadRequestException("Impossible de repasser une mission terminée en 'PENDING'.");
+  // ✅ Met à jour le statut d’une mission
+  async updateMissionStatus(id: number, status: MissionStatus, companyId?: number) {
+    const mission = companyId
+      ? await this.getOwnedMissionOrFail(id, companyId)
+      : await this.findOne(id);
+
+    if (
+      mission.status === MissionStatus.COMPLETED &&
+      status === MissionStatus.PENDING
+    ) {
+      throw new BadRequestException(
+        "Impossible de repasser une mission terminée en 'PENDING'.",
+      );
     }
 
-    // Vérifie les transitions logiques
     const validTransitions: Record<MissionStatus, MissionStatus[]> = {
       [MissionStatus.PENDING]: [MissionStatus.STAFFED, MissionStatus.CANCELLED],
       [MissionStatus.STAFFED]: [MissionStatus.COMPLETED, MissionStatus.CANCELLED],
@@ -151,7 +169,6 @@ export class MissionsService {
       );
     }
 
-    // Mise à jour
     mission.status = status;
     await this.missionsRepo.save(mission);
 
@@ -162,18 +179,61 @@ export class MissionsService {
     };
   }
 
-  async update(id: number, data: Partial<Mission>) {
-    // on enlève les relations interdites
+  async update(id: number, companyIdOrData: number | Partial<Mission>, maybeData?: Partial<Mission>) {
+    let companyId: number | undefined;
+    let data: Partial<Mission>;
+
+    if (typeof companyIdOrData === 'number') {
+      companyId = companyIdOrData;
+      data = maybeData ?? {};
+    } else {
+      data = companyIdOrData;
+    }
+
+    const mission = companyId
+      ? await this.findOne(id, companyId)
+      : await this.findOne(id);
+
+    if (!mission) throw new NotFoundException('Mission non trouvée');
+
     delete (data as any).students;
     delete (data as any).company;
+    delete (data as any).applications;
+    delete (data as any).transactions;
+    delete (data as any).messages;
 
-    await this.missionsRepo.update(id, data);
-    return this.findOne(id);
+    const updatedMission = {
+      ...mission,
+      ...data,
+    };
+
+    const startHour = updatedMission.startHour;
+    const endHour = updatedMission.endHour;
+    const studentCount = updatedMission.studentCount;
+
+    if (startHour && endHour && studentCount) {
+      const hours = this.calculateHours(startHour, endHour);
+
+      const hourlyRate = Number(updatedMission.hourlyRate ?? mission.hourlyRate ?? 16);
+      const totalStudentEarnings = studentCount * hourlyRate * hours;
+      const platformCommission = totalStudentEarnings * 0.3;
+      const totalCompanyCost = totalStudentEarnings + platformCommission;
+
+      updatedMission.hourlyRate = hourlyRate;
+      updatedMission.totalStudentEarnings = totalStudentEarnings;
+      updatedMission.platformCommission = platformCommission;
+      updatedMission.totalCompanyCost = totalCompanyCost;
+    }
+
+    await this.missionsRepo.save(updatedMission);
+    return companyId ? this.findOne(id, companyId) : this.findOne(id);
   }
 
   // ✅ Validation du paiement d’une mission complétée
-  async validateMissionPayment(id: number) {
-    const mission = await this.findOne(id);
+  async validateMissionPayment(id: number, companyId?: number) {
+    const mission = companyId
+      ? await this.getOwnedMissionOrFail(id, companyId)
+      : await this.findOne(id);
 
     if (mission.status !== MissionStatus.COMPLETED) {
       throw new BadRequestException(
@@ -181,22 +241,23 @@ export class MissionsService {
       );
     }
 
-    if (mission['paymentValidated']) {
-      throw new BadRequestException("Le paiement est déjà validé pour cette mission.");
+    if (mission.paymentValidated) {
+      throw new BadRequestException(
+        'Le paiement est déjà validé pour cette mission.',
+      );
     }
 
-    // ⚙️ Recalcule des montants pour sécurité
     const totalHours =
       this.calculateHours(mission.startHour, mission.endHour) * mission.studentCount;
-    const totalStudentEarnings = totalHours * mission.hourlyRate;
-    const platformCommission = totalStudentEarnings * 0.3; // 30%
+    const totalStudentEarnings = totalHours * Number(mission.hourlyRate);
+    const platformCommission = totalStudentEarnings * 0.3;
     const totalCompanyCost = totalStudentEarnings + platformCommission;
 
-    // 🧾 Mise à jour mission
-    mission['paymentValidated'] = true;
+    mission.paymentValidated = true;
     mission.totalStudentEarnings = totalStudentEarnings;
     mission.platformCommission = platformCommission;
     mission.totalCompanyCost = totalCompanyCost;
+    mission.paymentDate = new Date();
 
     await this.missionsRepo.save(mission);
 
@@ -218,10 +279,16 @@ export class MissionsService {
   }
 
 
-  // ✅ Supprimer une mission
-  async deleteMission(id: number) {
-    const mission = await this.missionsRepo.findOne({ where: { id } });
+  // ✅ Supprimer une mission appartenant à l'entreprise connectée
+  async deleteMission(id: number, companyId?: number) {
+    const mission = companyId
+      ? await this.missionsRepo.findOne({
+        where: { id, company: { id: companyId } },
+      })
+      : await this.missionsRepo.findOne({ where: { id } });
+
     if (!mission) throw new NotFoundException('Mission non trouvée');
+
     await this.missionsRepo.remove(mission);
     return { message: 'Mission supprimée avec succès' };
   }
@@ -276,7 +343,13 @@ export class MissionsService {
     }
   }
 
-  async getApplicationsForMission(missionId: number) {
+  async getApplicationsForMission(missionId: number, companyId?: number) {
+    if (companyId) {
+      await this.getOwnedMissionOrFail(missionId, companyId);
+    } else {
+      await this.findOne(missionId);
+    }
+
     return this.missionAppRepo.find({
       where: { mission: { id: missionId } },
       relations: ['student'],
@@ -284,13 +357,10 @@ export class MissionsService {
     });
   }
 
-  async staffMission(missionId: number, applicationIds: number[]) {
-    const mission = await this.missionsRepo.findOne({
-      where: { id: missionId },
-      relations: ['applications', 'students'],
-    });
-
-    if (!mission) throw new NotFoundException('Mission introuvable');
+  async staffMission(missionId: number, applicationIds: number[], companyId?: number) {
+    const mission = companyId
+      ? await this.getOwnedMissionOrFail(missionId, companyId)
+      : await this.findOne(missionId);
 
     if (applicationIds.length > mission.studentCount) {
       throw new BadRequestException(
@@ -298,7 +368,6 @@ export class MissionsService {
       );
     }
 
-    // Toutes les candidatures de la mission
     const allApps = await this.missionAppRepo.find({
       where: { mission: { id: missionId } },
       relations: ['student'],
@@ -306,14 +375,11 @@ export class MissionsService {
 
     const acceptedIds = new Set(applicationIds);
 
-    // vider la liste actuelle d'étudiants assignés
     mission.students = [];
 
     for (const app of allApps) {
       if (acceptedIds.has(app.id)) {
         app.status = ApplicationStatus.ACCEPTED;
-
-        // ajoute l'étudiant à la mission
         mission.students.push(app.student);
       } else if (app.status === ApplicationStatus.PENDING) {
         app.status = ApplicationStatus.REJECTED;
@@ -356,6 +422,87 @@ export class MissionsService {
     });
   }
 
+  private async getOwnedMissionOrFail(missionId: number, companyId: number) {
+    const mission = await this.missionsRepo.findOne({
+      where: { id: missionId, company: { id: companyId } },
+      relations: ['company', 'students', 'applications'],
+    });
+
+    if (!mission) {
+      throw new NotFoundException('Mission introuvable');
+    }
+
+    return mission;
+  }
+
+  async acceptApplicant(missionId: number, studentId: number, companyId: number) {
+    const mission = await this.getOwnedMissionOrFail(missionId, companyId);
+
+    const application = await this.missionAppRepo.findOne({
+      where: {
+        mission: { id: mission.id },
+        student: { id: studentId },
+      },
+      relations: ['student', 'mission'],
+    });
+
+    if (!application) {
+      throw new NotFoundException('Candidature introuvable');
+    }
+
+    application.status = ApplicationStatus.ACCEPTED;
+
+    const alreadyAssigned = mission.students.some((student) => student.id === studentId);
+    if (!alreadyAssigned && application.student) {
+      mission.students.push(application.student);
+    }
+
+    if (mission.students.length > 0) {
+      mission.status = MissionStatus.STAFFED;
+    }
+
+    await this.missionAppRepo.save(application);
+    await this.missionsRepo.save(mission);
+
+    return {
+      message: 'Candidature acceptée avec succès',
+      missionId,
+      studentId,
+    };
+  }
+
+  async rejectApplicant(missionId: number, studentId: number, companyId: number) {
+    const mission = await this.getOwnedMissionOrFail(missionId, companyId);
+
+    const application = await this.missionAppRepo.findOne({
+      where: {
+        mission: { id: mission.id },
+        student: { id: studentId },
+      },
+      relations: ['student', 'mission'],
+    });
+
+    if (!application) {
+      throw new NotFoundException('Candidature introuvable');
+    }
+
+    application.status = ApplicationStatus.REJECTED;
+
+    mission.students = mission.students.filter((student) => student.id !== studentId);
+
+    if (mission.students.length === 0) {
+      mission.status = MissionStatus.PENDING;
+    }
+
+    await this.missionAppRepo.save(application);
+    await this.missionsRepo.save(mission);
+
+    return {
+      message: 'Candidature refusée avec succès',
+      missionId,
+      studentId,
+    };
+  }
 
 
 }
